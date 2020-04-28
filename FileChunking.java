@@ -2,12 +2,18 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 
 class FileChunking {
     private static final int BUFSIZE = 4 * 1024;
+    private InetSocketAddress addr = null;
 
-    public FileChunking() {
+    public FileChunking(InetSocketAddress addr) {
+        this.addr = addr;
 
     }
 
@@ -87,7 +93,7 @@ class FileChunking {
         return filename + String.format(".part%0" + chunkIndexLength + "dof%0" + chunkIndexLength + "d", n + 1, total);
     }
 
-    public String[] splitFile(String fname, long chunkSize) throws IOException {
+    public String[] splitFile(String fname, long chunkSize, DatagramSocket ds) throws IOException {
         FileInputStream fis = null;
         ArrayList<String> res = new ArrayList<String>();
         byte[] buffer = new byte[BUFSIZE];
@@ -102,6 +108,20 @@ class FileChunking {
                 FileOutputStream fos = new FileOutputStream(chunkFName);
                 try {
                     written += copyStream(fis, buffer, fos, chunkSize);
+
+                    // We want to send the binary data and additionally, we want
+                    // to send the file name. We use "::::" to indicate that
+                    // the first segment is for filename, and the remaining segment
+                    // is for binary data
+                    String chunkFNameEnd = chunkFName + "::::";
+                    byte bufName[] = chunkFNameEnd.getBytes();
+                    byte[] combinedData = new byte[bufName.length + buffer.length];
+                    System.arraycopy(bufName, 0, combinedData, 0, bufName.length);
+                    System.arraycopy(buffer, 0, combinedData, bufName.length, buffer.length);
+
+                    // Initialise a title for sending the data
+                    DatagramPacket dpSend = new DatagramPacket(combinedData, combinedData.length, addr);
+                    ds.send(dpSend);
                 } finally {
                     fos.close();
                 }
