@@ -12,6 +12,10 @@ class FileChunking {
     private static final int BUFSIZE = 4 * 1024;
     private InetSocketAddress addr = null;
 
+    public FileChunking() {
+
+    }
+
     public FileChunking(InetSocketAddress addr) {
         this.addr = addr;
 
@@ -25,7 +29,7 @@ class FileChunking {
         return chunkIndexLen(file) > 0;
     }
 
-    private int chunkIndexLen(String file) {
+    public int chunkIndexLen(String file) {
         int n = numberOfTrailingDigits(file);
         if (n > 0) {
             String zeroes = new String(new char[n]).replace("\0", "0");
@@ -45,7 +49,7 @@ class FileChunking {
         return chunkName;
     }
 
-    private int getNumberOfChunks(String filename) {
+    public int getNumberOfChunks(String filename) {
         int n = chunkIndexLen(filename);
         if (n > 0) {
             try {
@@ -57,7 +61,7 @@ class FileChunking {
         return 1;
     }
 
-    private int getChunkNumber(String filename) {
+    public int getChunkNumber(String filename) {
         int n = chunkIndexLen(filename);
         if (n > 0) {
             try {
