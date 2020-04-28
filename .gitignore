@@ -3,3 +3,6 @@
 
 # Ignore VSCode files 
 .vscode
+
+# Ignore images/gif/video when placing in git repository 
+TestFiles/*

@@ -7,7 +7,7 @@
 javac $1.java 
 
 # Move all *.class files to classes directory 
-mv *.class classes 
+mv *.class classes/ 
 
 # Run the program 
 cd classes 
