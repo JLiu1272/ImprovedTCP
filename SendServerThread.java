@@ -4,8 +4,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 
-import javax.xml.crypto.Data;
-
 public class SendServerThread implements Runnable {
 
     DatagramSocket ds = null;
