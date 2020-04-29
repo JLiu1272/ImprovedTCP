@@ -1,40 +1,50 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class Client {
 
+    public static String directory = "TestFiles/";
+
     public static void main(String args[]) throws IOException {
 
-        DatagramSocket ds = new DatagramSocket();
+        // Utility utility = new Utility();
+        // byte[] binaryDataBuffer = new byte[4 * 1024];
+        // String filename = directory + "t1.gif.part200of243";
+        // System.out.println(filename);
+        // utility.fileToBinary(binaryDataBuffer, filename);
 
         if (args.length < 2) {
             System.err.println("Usage: java Client <Destination IP> <Bin File>");
             return;
         }
 
+        DatagramSocket ds = new DatagramSocket();
         InetSocketAddress addr = new InetSocketAddress(args[0], 3000);
-        // ds.bind(addr);
-
-        // String msg = "Sending something";
-        // byte buf[] = msg.getBytes();
-
-        // DatagramPacket dpSend = new DatagramPacket(buf, buf.length, addr);
-
-        // ds.send(dpSend);
-
         FileChunking fileChunker = new FileChunking(addr);
+        Utility utility = new Utility();
+        String fname1 = "t1.gif";
 
-        String fname1 = "TestFiles/t1.gif";
+        // Send the initial filename without any parts differentiation
+        String initMsg = "Filename#" + fname1;
+        utility.sendMsg(initMsg, ds, addr);
 
-        String[] fileChunks = fileChunker.splitFile(fname1, 2000, ds);
-        // // fileStatistics.printChunkNames(fileChunks, 10);
+        String[] fileChunks = fileChunker.splitFile(directory + fname1, 2000, ds);
 
-        // for (int i = 0; i < fileChunks.length; i++) {
-        // fileChunker.joinChunks(fileChunks[i]);
-        // }
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        try {
+            executor.execute(new ReceiveClientThread(ds));
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
+        }
+        String finishMsg = "Finished\n";
+        utility.sendMsg(finishMsg, ds, addr);
 
     }
 }

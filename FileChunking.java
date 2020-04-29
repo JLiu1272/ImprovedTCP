@@ -11,6 +11,8 @@ import java.util.ArrayList;
 class FileChunking {
     private static final int BUFSIZE = 4 * 1024;
     private InetSocketAddress addr = null;
+    private static String dir = "TestFiles/";
+    private static ArrayList<Integer> droppedIdx = new ArrayList<>();
 
     public FileChunking() {
 
@@ -18,7 +20,11 @@ class FileChunking {
 
     public FileChunking(InetSocketAddress addr) {
         this.addr = addr;
-
+        droppedIdx.add(207);
+        droppedIdx.add(198);
+        droppedIdx.add(161);
+        droppedIdx.add(77);
+        droppedIdx.add(216);
     }
 
     public boolean needsSplitting(String file, int chunkSize) {
@@ -93,12 +99,13 @@ class FileChunking {
     }
 
     // 0,8 ==> part1of8; 7,8 ==> part8of8
-    private String chunkFileName(String filename, int n, int total, int chunkIndexLength) {
+    public String chunkFileName(String filename, int n, int total, int chunkIndexLength) {
         return filename + String.format(".part%0" + chunkIndexLength + "dof%0" + chunkIndexLength + "d", n + 1, total);
     }
 
     public String[] splitFile(String fname, long chunkSize, DatagramSocket ds) throws IOException {
         FileInputStream fis = null;
+        Utility utility = new Utility();
         ArrayList<String> res = new ArrayList<String>();
         byte[] buffer = new byte[BUFSIZE];
         try {
@@ -112,25 +119,27 @@ class FileChunking {
                 FileOutputStream fos = new FileOutputStream(chunkFName);
                 try {
                     written += copyStream(fis, buffer, fos, chunkSize);
+                    if (!droppedIdx.contains(i)) {
+                        // Remove the directory
+                        String chunkFNameEnd = chunkFName.replace(dir, "");
 
-                    // We want to send the binary data and additionally, we want
-                    // to send the file name. We use "::::" to indicate that
-                    // the first segment is for filename, and the remaining segment
-                    // is for binary data
-                    String chunkFNameEnd = chunkFName + "::::";
-                    byte bufName[] = chunkFNameEnd.getBytes();
-                    byte[] combinedData = new byte[bufName.length + buffer.length];
-                    System.arraycopy(bufName, 0, combinedData, 0, bufName.length);
-                    System.arraycopy(buffer, 0, combinedData, bufName.length, buffer.length);
+                        byte[] combinedData = utility.createPacketObj(chunkFNameEnd, buffer);
+                        // Initialise a title for sending the data
+                        DatagramPacket dpSend = new DatagramPacket(combinedData, combinedData.length, addr);
+                        ds.send(dpSend);
+                    }
 
-                    // Initialise a title for sending the data
-                    DatagramPacket dpSend = new DatagramPacket(combinedData, combinedData.length, addr);
-                    ds.send(dpSend);
                 } finally {
                     fos.close();
                 }
                 res.add(chunkFName);
             }
+            // Send the finishing command, telling the server that
+            // we have sent all our chunks
+            byte[] endBuf = "Finished\n".getBytes();
+            DatagramPacket dpSend = new DatagramPacket(endBuf, endBuf.length, addr);
+            ds.send(dpSend);
+
         } finally {
             fis.close();
         }
@@ -159,7 +168,7 @@ class FileChunking {
             String filename = getWholeFileName(chunkName);
             // String filename = "TestFiles/t1_comb.gif";
             byte[] buffer = new byte[BUFSIZE];
-            FileOutputStream fos = new FileOutputStream("TestFiles/t1_comb.gif");
+            FileOutputStream fos = new FileOutputStream("TestFilesReceive/t1_comb.gif");
             try {
                 for (int i = 0; i < nChunks; i++) {
                     FileInputStream fis = new FileInputStream(chunkFileName(filename, i, nChunks, n));

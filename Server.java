@@ -4,18 +4,25 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class Server {
 
     private static int chunkSize = 0;
+
+    private static final String directory = "TestFilesReceive";
+
+    private static String oriFileName = "";
 
     public static void main(String args[]) throws IOException {
 
         int destPort = 3000;
         DatagramSocket ds = new DatagramSocket(destPort);
 
-        byte[] receive = new byte[65535];
+        byte[] receive = new byte[4 * 1024];
         DatagramPacket dpReceieve = null;
 
         // An array list that keeps of which chunks have arrived
@@ -32,29 +39,79 @@ class Server {
             int fileStartIdx = byteToStr(receive, fname);
             String fnameStr = fname.toString();
 
-            if (totalNumOfChunks == -1) {
-                totalNumOfChunks = fileChunking.getNumberOfChunks(fnameStr);
-                receivedChunks = new String[totalNumOfChunks];
+            // Obtain the file name
+            if (fnameStr.startsWith("Filename#")) {
+                oriFileName = fnameStr.split("#")[1];
+            } else if (fnameStr.startsWith("Finished")) {
+                if (receivedChunks == null) {
+                    System.err.println("No data was sent over");
+                } else {
+
+                    ArrayList<String> missingFiles = findMissingFiles(receivedChunks);
+
+                    // First we need to check whether we have all
+                    // the files necessary to stich together the original image.
+                    // If the arraylist of missing files has nothing, it means
+                    // we have all the files.
+                    if (missingFiles.size() == 0) {
+                        for (int i = 0; i < receivedChunks.length; i++) {
+                            fileChunking.joinChunks(directory + "/" + receivedChunks[i]);
+                        }
+                        // Send client a message indicating that the transaction succeeded
+                        byte[] successCode = "ReceivedSuccess\n".getBytes();
+                        DatagramPacket successMsg = new DatagramPacket(successCode, successCode.length,
+                                dpReceieve.getSocketAddress());
+                        ds.send(successMsg);
+                    } else {
+                        ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
+                        try {
+                            for (String fileName : missingFiles) {
+                                executor.execute(new SendServerThread(fileName, ds, dpReceieve.getSocketAddress()));
+                            }
+                        } catch (Exception err) {
+                            err.printStackTrace();
+                        }
+                        executor.shutdown();
+                        while (!executor.isTerminated()) {
+                        }
+                        System.out.println("Finished all threads");
+                    }
+
+                }
+
+            } else {
+                if (totalNumOfChunks == -1) {
+                    totalNumOfChunks = fileChunking.getNumberOfChunks(fnameStr);
+                    receivedChunks = new String[totalNumOfChunks];
+                }
+
+                int chunkNum = fileChunking.getChunkNumber(fnameStr);
+                byte[] binaryData = Arrays.copyOfRange(receive, fileStartIdx, fileStartIdx + 2000);
+                writeBinaryToFile(binaryData, fname.toString());
+                receivedChunks[chunkNum] = fnameStr;
+
+                System.out.println("Client:-" + fnameStr);
             }
 
-            int chunkNum = fileChunking.getChunkNumber(fnameStr);
-            receivedChunks[chunkNum] = fnameStr;
-
-            byte[] binaryData = Arrays.copyOfRange(receive, fileStartIdx, receive.length);
-            writeBinaryToFile(binaryData, fname.toString().split("/")[1]);
-
-            System.out.println("Client:-" + fnameStr);
         }
 
     }
 
-    private static int getTotalNumChunks(String fname) {
-        String[] tokens = fname.split("of");
+    private static ArrayList<String> findMissingFiles(String[] receivedChunks) {
+        ArrayList<String> missingFiles = new ArrayList<>();
 
-        if (tokens.length == 2) {
-            return Integer.parseInt(tokens[1]);
+        FileChunking fileChunking = new FileChunking();
+        int nChunks = receivedChunks.length;
+        int chunkIndexLength = String.format("%d", nChunks).length();
+
+        for (int i = 0; i < nChunks; i++) {
+            // If the value in this cell is null, it means
+            // I never receieved any data for this chunk.
+            if (receivedChunks[i] == null) {
+                missingFiles.add(fileChunking.chunkFileName(oriFileName, i, nChunks, chunkIndexLength));
+            }
         }
-        return -1;
+        return missingFiles;
     }
 
     public static void writeBinaryToFile(byte[] buffer, String fname) throws IOException {
@@ -88,9 +145,9 @@ class Server {
                 // not a colon, so reset the numColon counter.
                 // Append the character to the name
                 fname.append(letter);
-                i++;
                 numColon = 1;
             }
+            i++;
         }
         return i;
     }
