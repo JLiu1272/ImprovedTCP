@@ -2,12 +2,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 class Server {
 
@@ -43,6 +43,7 @@ class Server {
             if (fnameStr.startsWith("Filename#")) {
                 oriFileName = fnameStr.split("#")[1];
             } else if (fnameStr.startsWith("Finished")) {
+                System.out.println("Client:-" + "Finishing");
                 if (receivedChunks == null) {
                     System.err.println("No data was sent over");
                 } else {
@@ -65,16 +66,11 @@ class Server {
                     } else {
                         ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
                         try {
-                            for (String fileName : missingFiles) {
-                                executor.execute(new SendServerThread(fileName, ds, dpReceieve.getSocketAddress()));
-                            }
+                            executor.execute(new SendServerThread(missingFiles, ds, dpReceieve.getSocketAddress()));
+                            executor.shutdown();
                         } catch (Exception err) {
                             err.printStackTrace();
                         }
-                        executor.shutdown();
-                        while (!executor.isTerminated()) {
-                        }
-                        System.out.println("Finished all threads");
                     }
 
                 }

@@ -1,0 +1,7 @@
+[
+  {
+    "ChunkSize": 2000,
+    "ServerDir": "TestFilesReceive",
+    "ClientDir": "TestFiles"
+  }
+]

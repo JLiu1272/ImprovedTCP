@@ -9,21 +9,25 @@ public class SendServerThread implements Runnable {
     DatagramSocket ds = null;
     SocketAddress addr = null;
     String fileName = "";
+    ArrayList<String> missingFiles;
 
-    public SendServerThread(String filename, DatagramSocket ds, SocketAddress addr) {
+    public SendServerThread(ArrayList<String> missingFiles, DatagramSocket ds, SocketAddress addr) {
         this.ds = ds;
         this.addr = addr;
-        this.fileName = filename;
+        this.missingFiles = missingFiles;
     }
 
     public void run() {
         try {
-            // Need to send messages to client indicating which files
-            // are still missing
-            String missedFile = fileName + "\n";
-            byte[] errMsgBytes = missedFile.getBytes();
-            DatagramPacket data = new DatagramPacket(errMsgBytes, errMsgBytes.length, addr);
-            ds.send(data);
+
+            for (String fileName : missingFiles) {
+                // Need to send messages to client indicating which files
+                // are still missing
+                String missedFile = fileName + "\n";
+                byte[] errMsgBytes = missedFile.getBytes();
+                DatagramPacket data = new DatagramPacket(errMsgBytes, errMsgBytes.length, addr);
+                ds.send(data);
+            }
 
         } catch (Exception err) {
             err.printStackTrace();

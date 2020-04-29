@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 class Client {
 
     public static String directory = "TestFiles/";
+    public static int chunkSize = 2000;
 
     public static void main(String args[]) throws IOException {
 
@@ -32,7 +33,7 @@ class Client {
         String initMsg = "Filename#" + fname1;
         utility.sendMsg(initMsg, ds, addr);
 
-        String[] fileChunks = fileChunker.splitFile(directory + fname1, 2000, ds);
+        String[] fileChunks = fileChunker.splitFile(directory + fname1, chunkSize, ds);
 
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
@@ -41,9 +42,11 @@ class Client {
             err.printStackTrace();
         }
         executor.shutdown();
-        while (!executor.isTerminated()) {
+        while (!executor.isShutdown()) {
+
         }
         String finishMsg = "Finished\n";
+        System.out.println(finishMsg);
         utility.sendMsg(finishMsg, ds, addr);
 
     }

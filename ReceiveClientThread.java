@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 
 public class ReceiveClientThread implements Runnable {
 
@@ -40,8 +41,10 @@ public class ReceiveClientThread implements Runnable {
 
                     utility.fileToBinary(binaryDataBuffer, directory + chunkFName);
                     byte[] combinedData = utility.createPacketObj(chunkFName, binaryDataBuffer);
+                    InetSocketAddress addr = new InetSocketAddress(dpReceived.getAddress(), dpReceived.getPort());
                     dpSend = new DatagramPacket(combinedData, combinedData.length, dpReceived.getSocketAddress());
                     ds.send(dpSend);
+                    utility.sendMsg("Finished\n", ds, addr);
                 }
             } catch (IOException err) {
                 err.printStackTrace();
