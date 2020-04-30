@@ -5,8 +5,12 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 public class Utility {
+
+    public int chunkSize = 2000;
+    public int BUFSIZE = 4 * 1024;
 
     // A utility method to convert the byte array
     // data into a string representation.
@@ -24,19 +28,16 @@ public class Utility {
         return ret;
     }
 
-    public byte[] createPacketObj(String chunkFName, byte[] buffer) {
-        // We want to send the binary data and additionally, we want
-        // to send the file name. We use "::::" to indicate that
-        // the first segment is for filename, and the remaining segment
-        // is for binary data
-        String chunkFNameEnd = chunkFName + "::::";
-        byte bufName[] = chunkFNameEnd.getBytes();
-        byte[] combinedData = new byte[bufName.length + buffer.length];
-        System.arraycopy(bufName, 0, combinedData, 0, bufName.length);
-        System.arraycopy(buffer, 0, combinedData, bufName.length, buffer.length);
-        return combinedData;
-    }
+    public TCPProtocol extractData(byte[] packet) {
+        // Convert byte to string
+        int payloadStart = packet.length - chunkSize;
+        int checksumStart = payloadStart - 32;
+        byte[] payload = Arrays.copyOfRange(packet, payloadStart, packet.length);
+        byte[] checksum = Arrays.copyOfRange(packet, checksumStart, payloadStart);
+        String filename = new String(Arrays.copyOfRange(packet, 0, checksumStart));
 
+        return new TCPProtocol(filename, payload, checksum);
+    }
 
     public void sendMsg(String msg, DatagramSocket ds, InetSocketAddress addr) throws IOException {
         byte[] msgByte = msg.getBytes();
@@ -53,19 +54,5 @@ public class Utility {
         } finally {
             fis.close();
         }
-    }}
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    
-
-
+    }
+}

@@ -121,11 +121,16 @@ class FileChunking {
                     written += copyStream(fis, buffer, fos, chunkSize);
                     if (!droppedIdx.contains(i)) {
                         // Remove the directory
-                        String chunkFNameEnd = chunkFName.replace(dir, "");
+                        String chunkFileName = chunkFName.replace(dir, "");
+                        byte[] payload = new byte[(int) chunkSize];
+                        System.arraycopy(buffer, 0, payload, 0, (int) chunkSize);
+                        TCPProtocol tcpProtocol = new TCPProtocol(chunkFileName, payload);
+                        byte[] packagedData = tcpProtocol.packageData();
 
-                        byte[] combinedData = utility.createPacketObj(chunkFNameEnd, buffer);
+                        // byte[] combinedData = utility.createPacketObj(chunkFNameEnd, buffer);
+
                         // Initialise a title for sending the data
-                        DatagramPacket dpSend = new DatagramPacket(combinedData, combinedData.length, addr);
+                        DatagramPacket dpSend = new DatagramPacket(packagedData, packagedData.length, addr);
                         ds.send(dpSend);
                     }
 

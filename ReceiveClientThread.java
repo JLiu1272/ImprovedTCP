@@ -40,9 +40,11 @@ public class ReceiveClientThread implements Runnable {
                     System.out.println("Missing files: " + chunkFName);
 
                     utility.fileToBinary(binaryDataBuffer, directory + chunkFName);
-                    byte[] combinedData = utility.createPacketObj(chunkFName, binaryDataBuffer);
+                    // byte[] combinedData = utility.createPacketObj(chunkFName, binaryDataBuffer);
+                    TCPProtocol tcpProtocol = new TCPProtocol(chunkFName, binaryDataBuffer);
+                    byte[] packagedData = tcpProtocol.packageData();
                     InetSocketAddress addr = new InetSocketAddress(dpReceived.getAddress(), dpReceived.getPort());
-                    dpSend = new DatagramPacket(combinedData, combinedData.length, dpReceived.getSocketAddress());
+                    dpSend = new DatagramPacket(packagedData, packagedData.length, dpReceived.getSocketAddress());
                     ds.send(dpSend);
                     utility.sendMsg("Finished\n", ds, addr);
                 }

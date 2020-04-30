@@ -1,21 +1,18 @@
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.SocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.io.FileOutputStream;
 
 class Server {
 
-    private static int chunkSize = 0;
-
+    private static int chunkSize = 2000;
     private static final String directory = "TestFilesReceive";
-
     private static String oriFileName = "";
+    private static String[] receivedChunks = null;
 
     public static void main(String args[]) throws IOException {
 
@@ -26,71 +23,88 @@ class Server {
         DatagramPacket dpReceieve = null;
 
         // An array list that keeps of which chunks have arrived
-        String[] receivedChunks = null;
         int totalNumOfChunks = -1;
 
         while (true) {
             dpReceieve = new DatagramPacket(receive, receive.length);
             ds.receive(dpReceieve);
+            byte[] packet = new byte[dpReceieve.getLength()];
+            System.arraycopy(receive, 0, packet, 0, dpReceieve.getLength());
+
+            SocketAddress addr = dpReceieve.getSocketAddress();
 
             FileChunking fileChunking = new FileChunking();
+            Utility utility = new Utility();
 
-            StringBuilder fname = new StringBuilder();
-            int fileStartIdx = byteToStr(receive, fname);
-            String fnameStr = fname.toString();
-
-            // Obtain the file name
-            if (fnameStr.startsWith("Filename#")) {
-                oriFileName = fnameStr.split("#")[1];
-            } else if (fnameStr.startsWith("Finished")) {
-                System.out.println("Client:-" + "Finishing");
-                if (receivedChunks == null) {
-                    System.err.println("No data was sent over");
-                } else {
-
-                    ArrayList<String> missingFiles = findMissingFiles(receivedChunks);
-
-                    // First we need to check whether we have all
-                    // the files necessary to stich together the original image.
-                    // If the arraylist of missing files has nothing, it means
-                    // we have all the files.
-                    if (missingFiles.size() == 0) {
-                        for (int i = 0; i < receivedChunks.length; i++) {
-                            fileChunking.joinChunks(directory + "/" + receivedChunks[i]);
-                        }
-                        // Send client a message indicating that the transaction succeeded
-                        byte[] successCode = "ReceivedSuccess\n".getBytes();
-                        DatagramPacket successMsg = new DatagramPacket(successCode, successCode.length,
-                                dpReceieve.getSocketAddress());
-                        ds.send(successMsg);
-                    } else {
-                        ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
-                        try {
-                            executor.execute(new SendServerThread(missingFiles, ds, dpReceieve.getSocketAddress()));
-                            executor.shutdown();
-                        } catch (Exception err) {
-                            err.printStackTrace();
-                        }
-                    }
-
-                }
-
-            } else {
+            try {
+                TCPProtocol tcpProtocol = utility.extractData(packet);
+                String fname = tcpProtocol.fileName();
+                byte[] checksum = tcpProtocol.checksum();
+                byte[] payload = tcpProtocol.payload();
                 if (totalNumOfChunks == -1) {
-                    totalNumOfChunks = fileChunking.getNumberOfChunks(fnameStr);
+                    totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
                     receivedChunks = new String[totalNumOfChunks];
                 }
 
-                int chunkNum = fileChunking.getChunkNumber(fnameStr);
-                byte[] binaryData = Arrays.copyOfRange(receive, fileStartIdx, fileStartIdx + 2000);
-                writeBinaryToFile(binaryData, fname.toString());
-                receivedChunks[chunkNum] = fnameStr;
+                int chunkNum = fileChunking.getChunkNumber(fname);
+                writeBinaryToFile(payload, fname);
+                receivedChunks[chunkNum] = fname;
 
-                System.out.println("Client:-" + fnameStr);
+                System.out.println("Client:-" + fname);
+            } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                String msg = new String(packet);
+                if (msg.startsWith("Filename#")) {
+                    oriFileName = msg.split("#")[1];
+                } else if (msg.startsWith("Finished")) {
+                    completeTransaction(addr, ds, msg);
+                }
             }
-
         }
+    }
 
+    public static void completeTransaction(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
+        System.out.println("Client:-" + "Finishing");
+        if (receivedChunks == null) {
+            System.err.println("No data was sent over");
+        } else {
+
+            ArrayList<String> missingFiles = findMissingFiles(receivedChunks);
+
+            // First we need to check whether we have all
+            // the files necessary to stich together the original image.
+            // If the arraylist of missing files has nothing, it means
+            // we have all the files.
+            if (missingFiles.size() == 0) {
+                stitchChunks();
+                notifyClient(addr, ds, "ReceivedSuccess\n");
+            } else {
+                notifyClientMissingFiles(missingFiles, addr, ds);
+            }
+        }
+    }
+
+    public static void stitchChunks() throws IOException {
+        FileChunking fileChunking = new FileChunking();
+        for (int i = 0; i < receivedChunks.length; i++) {
+            fileChunking.joinChunks(directory + "/" + receivedChunks[i]);
+        }
+    }
+
+    public static void notifyClientMissingFiles(ArrayList<String> missingFiles, SocketAddress addr, DatagramSocket ds) {
+        ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
+        try {
+            executor.execute(new SendServerThread(missingFiles, ds, addr));
+            executor.shutdown();
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+    }
+
+    public static void notifyClient(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
+        // Send client a message indicating that the transaction succeeded
+        byte[] msgByte = msg.getBytes();
+        DatagramPacket msgPkt = new DatagramPacket(msgByte, msgByte.length, addr);
+        ds.send(msgPkt);
     }
 
     private static ArrayList<String> findMissingFiles(String[] receivedChunks) {
@@ -111,11 +125,11 @@ class Server {
     }
 
     public static void writeBinaryToFile(byte[] buffer, String fname) throws IOException {
-        FileOutputStream fos = new FileOutputStream("TestFilesReceive/" + fname);
+        FileOutputStream fos = new FileOutputStream(directory + "/" + fname);
         fos.write(buffer);
         fos.close();
     }
-
+        
     // A utility method to convert the byte array
     // data into a string representation.
     // Returns the last byte index that is part of the filename
