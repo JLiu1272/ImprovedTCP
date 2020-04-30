@@ -34,9 +34,10 @@ public class Utility {
         int checksumStart = payloadStart - 32;
         byte[] payload = Arrays.copyOfRange(packet, payloadStart, packet.length);
         byte[] checksum = Arrays.copyOfRange(packet, checksumStart, payloadStart);
-        String filename = new String(Arrays.copyOfRange(packet, 0, checksumStart));
+        String filename = new String(Arrays.copyOfRange(packet, 1, checksumStart));
+        Boolean resend = packet[0] == 1;
 
-        return new TCPProtocol(filename, payload, checksum);
+        return new TCPProtocol(filename, payload, checksum, resend);
     }
 
     public void sendMsg(String msg, DatagramSocket ds, InetSocketAddress addr) throws IOException {

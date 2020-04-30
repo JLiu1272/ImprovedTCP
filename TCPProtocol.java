@@ -12,20 +12,27 @@ class TCPProtocol {
     private String chunkFileName = "";
     private byte[] chunkFileNameByte = null;
     private byte[] checksum = null;
+    private Boolean resend = false;
 
     private int chunkSize = 2000;
 
-    public TCPProtocol(String chunkFileName, byte[] payload) {
+    public TCPProtocol(String chunkFileName, byte[] payload, Boolean resend) {
         this.chunkFileName = chunkFileName;
         this.chunkFileNameByte = chunkFileName.getBytes();
         this.payload = payload;
+        this.resend = resend;
     }
 
-    public TCPProtocol(String filename, byte[] payload, byte[] checksum) {
+    public TCPProtocol(String filename, byte[] payload, byte[] checksum, Boolean resend) {
         this.checksum = checksum;
         this.chunkFileName = filename;
         this.chunkFileNameByte = filename.getBytes();
         this.payload = payload;
+        this.resend = resend;
+    }
+
+    public byte[] boolToByteArr(Boolean resend) {
+        return new byte[] { (byte) (resend ? 1 : 0) };
     }
 
     /********************************
@@ -56,6 +63,16 @@ class TCPProtocol {
      */
     public byte[] checksum() {
         return this.checksum;
+    }
+
+    /**
+     * Indicates whether this TCP packet was a resend. Resend happens when packet
+     * was lost in the first round of sendind data so it needs to be resent
+     * 
+     * @return
+     */
+    public Boolean isResend() {
+        return this.resend;
     }
 
     /********************************
@@ -99,7 +116,8 @@ class TCPProtocol {
 
     /**
      * Creates a byte array of the protocol so that it can be sent to as a packet
-     * Protocol is in the follow format - Filename:::Checksum:::Payload
+     * Protocol is in the follow format -
+     * ResendState:::Filename:::Checksum:::Payload
      * 
      * @return
      */
@@ -113,6 +131,7 @@ class TCPProtocol {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try {
+            outputStream.write(boolToByteArr(resend));
             outputStream.write(this.chunkFileNameByte);
             outputStream.write(this.computeChecksum());
             outputStream.write(this.payload);

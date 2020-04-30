@@ -38,6 +38,7 @@ class Server {
 
             try {
                 TCPProtocol tcpProtocol = utility.extractData(packet);
+                Boolean resend = tcpProtocol.isResend();
                 String fname = tcpProtocol.fileName();
                 byte[] checksum = tcpProtocol.checksum();
                 byte[] payload = tcpProtocol.payload();
@@ -55,7 +56,10 @@ class Server {
                 String msg = new String(packet);
                 if (msg.startsWith("Filename#")) {
                     oriFileName = msg.split("#")[1];
-                } else if (msg.startsWith("Finished")) {
+                } else if (packet[0] == 1 || msg.startsWith("Finished")) {
+                    System.out.println("Finishing");
+                    // The packet received is a resent. Now check 
+                    // to see if all the packets have arrived
                     completeTransaction(addr, ds, msg);
                 }
             }

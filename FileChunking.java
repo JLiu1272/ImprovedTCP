@@ -124,7 +124,7 @@ class FileChunking {
                         String chunkFileName = chunkFName.replace(dir, "");
                         byte[] payload = new byte[(int) chunkSize];
                         System.arraycopy(buffer, 0, payload, 0, (int) chunkSize);
-                        TCPProtocol tcpProtocol = new TCPProtocol(chunkFileName, payload);
+                        TCPProtocol tcpProtocol = new TCPProtocol(chunkFileName, payload, false);
                         byte[] packagedData = tcpProtocol.packageData();
 
                         // byte[] combinedData = utility.createPacketObj(chunkFNameEnd, buffer);
