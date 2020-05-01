@@ -13,13 +13,14 @@ class Server {
     private static final String directory = "TestFilesReceive";
     private static String oriFileName = "";
     private static String[] receivedChunks = null;
+    private static int BUFSIZE = 4 * 1024;
 
     public static void main(String args[]) throws IOException {
 
         int destPort = 3000;
         DatagramSocket ds = new DatagramSocket(destPort);
 
-        byte[] receive = new byte[4 * 1024];
+        byte[] receive = new byte[BUFSIZE];
         DatagramPacket dpReceieve = null;
 
         // An array list that keeps of which chunks have arrived
