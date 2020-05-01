@@ -5,13 +5,13 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class Client {
 
     public static String directory = "TestFiles/";
     public static int chunkSize = 2000;
     public static int port = 3000;
-    public static int TIMEOUT = 3000;
 
     public static void main(String args[]) throws IOException {
         if (args.length < 2) {
@@ -48,10 +48,14 @@ public class Client {
             ExecutorService executor = Executors.newFixedThreadPool(1);
             try {
                 executor.execute(new ReceiveClientThread(ds));
+                executor.shutdown();
+                while (!executor.isTerminated()) {
+                    Thread.sleep(7000);
+                    utility.sendMsg("Finished\n", ds, addr);
+                }
             } catch (Exception err) {
                 err.printStackTrace();
             }
-            executor.shutdown();
         } else {
             System.err.println("Server: " + ipDest + " - is not available");
         }
@@ -67,7 +71,7 @@ public class Client {
     public static boolean initialHandshake(DatagramSocket ds) {
         try {
             byte[] ackByte = new byte[chunkSize];
-            ds.setSoTimeout(TIMEOUT);
+            ds.setSoTimeout(3000);
             DatagramPacket dpACK = new DatagramPacket(ackByte, ackByte.length);
             ds.receive(dpACK);
             String ack = new String(ackByte);

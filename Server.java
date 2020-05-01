@@ -3,7 +3,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -11,9 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-class Server {
+public class Server {
 
-    private static int chunkSize = 2000;
     private static final String directory = "TestFilesReceive";
     private static String oriFileName = "";
     private String[] receivedChunks = null;
@@ -79,10 +77,11 @@ class Server {
                     server.notifyClient(addr, ds, "ACK\n");
                 } else if (msg.startsWith("Finished")) {
                     System.out.println("Finishing");
-
                     // to see if all the packets have arrived
                     server.completeTransaction(addr, ds);
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
