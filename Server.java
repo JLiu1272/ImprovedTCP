@@ -1,3 +1,4 @@
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -5,7 +6,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.io.FileOutputStream;
+import java.util.concurrent.TimeUnit;
 
 class Server {
 
@@ -14,11 +15,13 @@ class Server {
     private static String oriFileName = "";
     private static String[] receivedChunks = null;
     private static int BUFSIZE = 4 * 1024;
+    private ArrayList<String> missingFiles = null;
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String[] args) throws IOException {
 
         int destPort = 3000;
         DatagramSocket ds = new DatagramSocket(destPort);
+        Server server = new Server();
 
         byte[] receive = new byte[BUFSIZE];
         DatagramPacket dpReceieve = null;
@@ -43,37 +46,53 @@ class Server {
                 String fname = tcpProtocol.fileName();
                 byte[] checksum = tcpProtocol.checksum();
                 byte[] payload = tcpProtocol.payload();
-                if (totalNumOfChunks == -1) {
-                    totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
-                    receivedChunks = new String[totalNumOfChunks];
+
+                if (resend) {
+                    System.out.println("Resends");
+                    Boolean allFilesPatched = server.removeMissingFile(fname);
+                    if (allFilesPatched)
+                        server.completeTransaction(addr, ds);
+                } else {
+                    if (totalNumOfChunks == -1) {
+                        totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
+                        receivedChunks = new String[totalNumOfChunks];
+                    }
+
+                    int chunkNum = fileChunking.getChunkNumber(fname);
+                    server.writeBinaryToFile(payload, fname);
+                    receivedChunks[chunkNum] = fname;
+
+                    System.out.println("Client:-" + fname);
                 }
-
-                int chunkNum = fileChunking.getChunkNumber(fname);
-                writeBinaryToFile(payload, fname);
-                receivedChunks[chunkNum] = fname;
-
-                System.out.println("Client:-" + fname);
             } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                 String msg = new String(packet);
                 if (msg.startsWith("Filename#")) {
                     oriFileName = msg.split("#")[1];
-                } else if (packet[0] == 1 || msg.startsWith("Finished")) {
+                    server.notifyClient(addr, ds, "ACK\n");
+                } else if (msg.startsWith("Finished")) {
                     System.out.println("Finishing");
-                    // The packet received is a resent. Now check
+
                     // to see if all the packets have arrived
-                    completeTransaction(addr, ds, msg);
+                    server.completeTransaction(addr, ds);
                 }
             }
         }
     }
 
-    public static void completeTransaction(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
+    public Boolean removeMissingFile(String filename) {
+        if (missingFiles.contains(filename)) {
+            missingFiles.remove(filename);
+        }
+        return missingFiles.size() == 0;
+    }
+
+    public void completeTransaction(SocketAddress addr, DatagramSocket ds) throws IOException {
         System.out.println("Client:-" + "Finishing");
         if (receivedChunks == null) {
             System.err.println("No data was sent over");
         } else {
 
-            ArrayList<String> missingFiles = findMissingFiles(receivedChunks);
+            missingFiles = findMissingFiles(receivedChunks);
 
             // First we need to check whether we have all
             // the files necessary to stich together the original image.
@@ -83,36 +102,37 @@ class Server {
                 stitchChunks();
                 notifyClient(addr, ds, "ReceivedSuccess\n");
             } else {
-                notifyClientMissingFiles(missingFiles, addr, ds);
+                notifyClientMissingFiles(addr, ds);
             }
         }
     }
 
-    public static void stitchChunks() throws IOException {
+    public void stitchChunks() throws IOException {
         FileChunking fileChunking = new FileChunking();
         for (int i = 0; i < receivedChunks.length; i++) {
             fileChunking.joinChunks(directory + "/" + receivedChunks[i]);
         }
     }
 
-    public static void notifyClientMissingFiles(ArrayList<String> missingFiles, SocketAddress addr, DatagramSocket ds) {
+    public void notifyClientMissingFiles(SocketAddress addr, DatagramSocket ds) {
         ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
         try {
             executor.execute(new SendServerThread(missingFiles, ds, addr));
             executor.shutdown();
-        } catch (Exception err) {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException err) {
             err.printStackTrace();
         }
     }
 
-    public static void notifyClient(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
+    public void notifyClient(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
         // Send client a message indicating that the transaction succeeded
         byte[] msgByte = msg.getBytes();
         DatagramPacket msgPkt = new DatagramPacket(msgByte, msgByte.length, addr);
         ds.send(msgPkt);
     }
 
-    private static ArrayList<String> findMissingFiles(String[] receivedChunks) {
+    public ArrayList<String> findMissingFiles(String[] receivedChunks) {
         ArrayList<String> missingFiles = new ArrayList<>();
 
         FileChunking fileChunking = new FileChunking();
@@ -129,7 +149,7 @@ class Server {
         return missingFiles;
     }
 
-    public static void writeBinaryToFile(byte[] buffer, String fname) throws IOException {
+    public void writeBinaryToFile(byte[] buffer, String fname) throws IOException {
         FileOutputStream fos = new FileOutputStream(directory + "/" + fname);
         fos.write(buffer);
         fos.close();
@@ -138,7 +158,7 @@ class Server {
     // A utility method to convert the byte array
     // data into a string representation.
     // Returns the last byte index that is part of the filename
-    public static int byteToStr(byte[] a, StringBuilder fname) {
+    public int byteToStr(byte[] a, StringBuilder fname) {
         if (a == null)
             return -1;
         // StringBuilder ret = new StringBuilder();

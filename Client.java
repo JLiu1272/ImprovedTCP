@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
@@ -9,6 +10,7 @@ class Client {
     public static String directory = "TestFiles/";
     public static int chunkSize = 2000;
     public static int port = 3000;
+    public static int TIMEOUT = 3000;
 
     public static void main(String args[]) throws IOException {
         // Utility utility = new Utility();
@@ -27,18 +29,17 @@ class Client {
         // }
 
         DatagramSocket ds = new DatagramSocket();
+        InetSocketAddress addr = new InetSocketAddress(ipDest, port);
+        FileChunking fileChunker = new FileChunking(addr);
+        Utility utility = new Utility();
+        String fname1 = "t1.gif";
 
-        if (hasConnection(port)) {
-            InetSocketAddress addr = new InetSocketAddress(ipDest, port);
+        // Send the initial filename without any parts differentiation
+        String initMsg = "Filename#" + fname1;
+        utility.sendMsg(initMsg, ds, addr);
+        Boolean connAvail = initialHandshake(ds);
 
-            FileChunking fileChunker = new FileChunking(addr);
-            Utility utility = new Utility();
-            String fname1 = "t1.gif";
-
-            // Send the initial filename without any parts differentiation
-            String initMsg = "Filename#" + fname1;
-            utility.sendMsg(initMsg, ds, addr);
-
+        if (connAvail) {
             String[] fileChunks = fileChunker.splitFile(directory + fname1, chunkSize, ds);
 
             ExecutorService executor = Executors.newFixedThreadPool(1);
@@ -54,21 +55,25 @@ class Client {
     }
 
     /**
-     * Check to see if a port is available.
+     * Does initial handshakes. Waits for ACK to come back from server. If after 2s,
+     * an ACK is still not returned, we consider this server unavailable
      *
-     * @param port the port to check for availability.
+     * @param ds - DatagramSocket used for sending and receiving data
+     * @return success - True if server is available, False otherwise
      */
-    public static boolean hasConnection(int port) {
-        try (DatagramSocket ds = new DatagramSocket(port)) {
-            return false;
+    public static boolean initialHandshake(DatagramSocket ds) {
+        try {
+            byte[] ackByte = new byte[chunkSize];
+            ds.setSoTimeout(TIMEOUT);
+            DatagramPacket dpACK = new DatagramPacket(ackByte, ackByte.length);
+            ds.receive(dpACK);
+            String ack = new String(ackByte);
+            if (ack.startsWith("ACK")) {
+                return true;
+            }
         } catch (IOException e) {
-            return true;
+            return false;
         }
+        return false;
     }
 }
-
-    
-
-    
-
-    

@@ -8,8 +8,7 @@ public class SendServerThread implements Runnable {
 
     DatagramSocket ds = null;
     SocketAddress addr = null;
-    String fileName = "";
-    ArrayList<String> missingFiles;
+    ArrayList<String> missingFiles = null;
 
     public SendServerThread(ArrayList<String> missingFiles, DatagramSocket ds, SocketAddress addr) {
         this.ds = ds;
@@ -20,12 +19,12 @@ public class SendServerThread implements Runnable {
     public void run() {
         try {
 
-            for (String fileName : missingFiles) {
+            for (String filename : missingFiles) {
                 // Need to send messages to client indicating which files
                 // are still missing
-                String missedFile = fileName + "\n";
-                byte[] errMsgBytes = missedFile.getBytes();
-                DatagramPacket data = new DatagramPacket(errMsgBytes, errMsgBytes.length, addr);
+                String filenameWNewLine = filename + "\n";
+                byte[] filenameBytes = filenameWNewLine.getBytes();
+                DatagramPacket data = new DatagramPacket(filenameBytes, filenameBytes.length, addr);
                 ds.send(data);
             }
 

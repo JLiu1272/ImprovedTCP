@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -5,6 +6,8 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class Utility {
@@ -38,6 +41,38 @@ public class Utility {
         Boolean resend = packet[0] == 1;
 
         return new TCPProtocol(filename, payload, checksum, resend);
+    }
+
+    /**
+     * Compute the checksum for this packet
+     * 
+     * @return a byte array containing the checksum
+     */
+    public byte[] computeChecksum(String chunkFileName, byte[] payload) {
+        byte[] chunkFileNameByte = chunkFileName.getBytes();
+        // Check that we have things in chunkFileNameByte and payload
+        if (chunkFileNameByte == null || payload == null) {
+            System.err.println("Payload and filename is empty");
+            return new byte[1];
+        }
+
+        byte[] combinedData = new byte[1];
+
+        // Convert the filename to byte array
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            outputStream.write(chunkFileNameByte);
+            outputStream.write(payload);
+            combinedData = outputStream.toByteArray();
+            return md.digest(combinedData);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        return combinedData;
     }
 
     public void sendMsg(String msg, DatagramSocket ds, InetSocketAddress addr) throws IOException {

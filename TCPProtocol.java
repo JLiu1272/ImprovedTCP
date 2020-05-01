@@ -84,37 +84,6 @@ class TCPProtocol {
      ********************************/
 
     /**
-     * Compute the checksum for this packet
-     * 
-     * @return a byte array containing the checksum
-     */
-    public byte[] computeChecksum() {
-        // Check that we have things in chunkFileNameByte and payload
-        if (this.chunkFileNameByte == null || this.payload == null) {
-            System.err.println("Payload and filename is empty");
-            return new byte[1];
-        }
-
-        byte[] combinedData = new byte[1];
-
-        // Convert the filename to byte array
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            outputStream.write(chunkFileNameByte);
-            outputStream.write(payload);
-            combinedData = outputStream.toByteArray();
-            return md.digest(combinedData);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-
-        return combinedData;
-    }
-
-    /**
      * Creates a byte array of the protocol so that it can be sent to as a packet
      * Protocol is in the follow format -
      * ResendState:::Filename:::Checksum:::Payload
@@ -128,12 +97,13 @@ class TCPProtocol {
         }
 
         byte[] protocol = new byte[1];
+        Utility utility = new Utility();
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try {
             outputStream.write(boolToByteArr(resend));
             outputStream.write(this.chunkFileNameByte);
-            outputStream.write(this.computeChecksum());
+            outputStream.write(utility.computeChecksum(chunkFileName, payload));
             outputStream.write(this.payload);
             protocol = outputStream.toByteArray();
         } catch (IOException e) {
