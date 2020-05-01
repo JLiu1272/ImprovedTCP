@@ -4,6 +4,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,24 +45,29 @@ class Server {
                 TCPProtocol tcpProtocol = utility.extractData(packet);
                 Boolean resend = tcpProtocol.isResend();
                 String fname = tcpProtocol.fileName();
-                byte[] checksum = tcpProtocol.checksum();
+                byte[] clientChecksum = tcpProtocol.checksum();
                 byte[] payload = tcpProtocol.payload();
 
-                if (totalNumOfChunks == -1) {
-                    totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
-                    server.receivedChunks = new String[totalNumOfChunks];
+                if (server.isDataCorrupted(clientChecksum, fname, payload)) {
+                    server.notifyClient(addr, ds, fname + "\n");
+                } else {
+                    if (totalNumOfChunks == -1) {
+                        totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
+                        server.receivedChunks = new String[totalNumOfChunks];
+                    }
+
+                    int chunkNum = fileChunking.getChunkNumber(fname);
+                    server.writeBinaryToFile(payload, fname);
+                    server.receivedChunks[chunkNum] = fname;
+
+                    System.out.println("Client:-" + fname + ", Resend: " + resend.toString());
+                    if (resend) {
+                        Boolean allFilesPatched = server.removeMissingFile(fname);
+                        if (allFilesPatched)
+                            server.completeTransaction(addr, ds);
+                    }
                 }
 
-                int chunkNum = fileChunking.getChunkNumber(fname);
-                server.writeBinaryToFile(payload, fname);
-                server.receivedChunks[chunkNum] = fname;
-
-                System.out.println("Client:-" + fname + ", Resend: " + resend.toString());
-                if (resend) {
-                    Boolean allFilesPatched = server.removeMissingFile(fname);
-                    if (allFilesPatched)
-                        server.completeTransaction(addr, ds);
-                }
             } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                 String msg = new String(packet);
                 if (msg.startsWith("Filename#")) {
@@ -75,6 +81,12 @@ class Server {
                 }
             }
         }
+    }
+
+    public Boolean isDataCorrupted(byte[] clientChecksum, String chunkFileName, byte[] payload) {
+        Utility utility = new Utility();
+        byte[] serverChecksum = utility.computeChecksum(chunkFileName, payload);
+        return !Arrays.equals(clientChecksum, serverChecksum);
     }
 
     public Boolean removeMissingFile(String filename) {
@@ -115,7 +127,9 @@ class Server {
     public void notifyClientMissingFiles(SocketAddress addr, DatagramSocket ds) {
         ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
         try {
-            executor.execute(new SendServerThread(missingFiles, ds, addr));
+            for (String filename : missingFiles) {
+                executor.execute(new SendServerThread(filename, ds, addr));
+            }
             executor.shutdown();
             executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
         } catch (InterruptedException err) {
