@@ -58,7 +58,7 @@ class Server {
                     oriFileName = msg.split("#")[1];
                 } else if (packet[0] == 1 || msg.startsWith("Finished")) {
                     System.out.println("Finishing");
-                    // The packet received is a resent. Now check 
+                    // The packet received is a resent. Now check
                     // to see if all the packets have arrived
                     completeTransaction(addr, ds, msg);
                 }
@@ -133,7 +133,7 @@ class Server {
         fos.write(buffer);
         fos.close();
     }
-        
+
     // A utility method to convert the byte array
     // data into a string representation.
     // Returns the last byte index that is part of the filename

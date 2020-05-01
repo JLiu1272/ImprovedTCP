@@ -38,19 +38,13 @@ class Client {
 
         String[] fileChunks = fileChunker.splitFile(directory + fname1, chunkSize, ds);
 
-        // ExecutorService executor = Executors.newFixedThreadPool(1);
-        // try {
-        // executor.execute(new ReceiveClientThread(ds));
-        // } catch (Exception err) {
-        // err.printStackTrace();
-        // }
-        // executor.shutdown();
-        // while (!executor.isShutdown()) {
-
-        // }
-        // String finishMsg = "Finished\n";
-        // System.out.println(finishMsg);
-        // utility.sendMsg(finishMsg, ds, addr);
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        try {
+            executor.execute(new ReceiveClientThread(ds));
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+        executor.shutdown();
 
     }
 }

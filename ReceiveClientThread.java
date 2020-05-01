@@ -7,7 +7,7 @@ public class ReceiveClientThread implements Runnable {
 
     DatagramSocket ds = null;
     Boolean transferComplete = false;
-    int buffSize = 4 * 1024;
+    int chunkSize = 2000;
     String directory = "TestFiles/";
 
     public ReceiveClientThread(DatagramSocket ds) {
@@ -17,7 +17,7 @@ public class ReceiveClientThread implements Runnable {
     public void run() {
         FileChunking fileChunking = new FileChunking();
         Utility utility = new Utility();
-        byte[] receive = new byte[buffSize];
+        byte[] receive = new byte[chunkSize];
         DatagramPacket dpReceived = null;
         DatagramPacket dpSend = null;
 
@@ -35,12 +35,11 @@ public class ReceiveClientThread implements Runnable {
                     System.out.println("Completed transaction successfully");
                     transferComplete = true;
                 } else {
-                    byte[] binaryDataBuffer = new byte[buffSize];
+                    byte[] binaryDataBuffer = new byte[chunkSize];
                     String chunkFName = msg.replace("\n", "");
                     System.out.println("Missing files: " + chunkFName);
 
                     utility.fileToBinary(binaryDataBuffer, directory + chunkFName);
-                    // byte[] combinedData = utility.createPacketObj(chunkFName, binaryDataBuffer);
                     TCPProtocol tcpProtocol = new TCPProtocol(chunkFName, binaryDataBuffer, true);
                     byte[] packagedData = tcpProtocol.packageData();
                     InetSocketAddress addr = new InetSocketAddress(dpReceived.getAddress(), dpReceived.getPort());

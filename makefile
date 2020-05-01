@@ -7,6 +7,11 @@ JC = javac
 CLASSES = \
 	Client.java \
 	Server.java \
+	ReceiveClientThread.java \
+	FileChunking.java \
+	SendServerThread.java \
+	Utility.java \
+	TCPProtocol.java \
 
 default: classes 
 
