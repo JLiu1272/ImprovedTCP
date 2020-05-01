@@ -90,7 +90,7 @@ class TCPProtocol {
      * 
      * @return
      */
-    public byte[] packageData() {
+    public byte[] packageData(Boolean corrupt) {
         if (this.chunkFileNameByte == null || this.payload == null) {
             System.err.println("Filename or payload are null");
             return new byte[1];
@@ -104,6 +104,10 @@ class TCPProtocol {
             outputStream.write(boolToByteArr(resend));
             outputStream.write(this.chunkFileNameByte);
             outputStream.write(utility.computeChecksum(chunkFileName, payload));
+
+            if (corrupt)
+                this.payload[0] = 22;
+
             outputStream.write(this.payload);
             protocol = outputStream.toByteArray();
         } catch (IOException e) {

@@ -5,6 +5,8 @@ import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -16,7 +18,8 @@ class Server {
     private static String oriFileName = "";
     private String[] receivedChunks = null;
     private static int BUFSIZE = 4 * 1024;
-    private ArrayList<String> missingFiles = null;
+    private Set<String> missingFiles = null;
+    private Set<String> corruptedFiles = null;
 
     public static void main(String[] args) throws IOException {
 
@@ -49,7 +52,7 @@ class Server {
                 byte[] payload = tcpProtocol.payload();
 
                 if (server.isDataCorrupted(clientChecksum, fname, payload)) {
-                    server.notifyClient(addr, ds, fname + "\n");
+                    server.addCorruptedFiles(fname);
                 } else {
                     if (totalNumOfChunks == -1) {
                         totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
@@ -62,8 +65,9 @@ class Server {
 
                     System.out.println("Client:-" + fname + ", Resend: " + resend.toString());
                     if (resend) {
-                        Boolean allFilesPatched = server.removeMissingFile(fname);
-                        if (allFilesPatched)
+                        Boolean noMissingFiles = server.removeMissingFile(fname);
+                        Boolean noCorruptedFiles = server.removeCorruptedFile(fname);
+                        if (noMissingFiles && noCorruptedFiles)
                             server.completeTransaction(addr, ds);
                     }
                 }
@@ -89,6 +93,18 @@ class Server {
         return !Arrays.equals(clientChecksum, serverChecksum);
     }
 
+    public void addCorruptedFiles(String filename) {
+        corruptedFiles = (corruptedFiles == null) ? new LinkedHashSet<>() : corruptedFiles;
+        corruptedFiles.add(filename);
+    }
+
+    public Boolean removeCorruptedFile(String filename) {
+        if (corruptedFiles.contains(filename)) {
+            corruptedFiles.remove(filename);
+        }
+        return corruptedFiles.size() == 0;
+    }
+
     public Boolean removeMissingFile(String filename) {
         if (missingFiles.contains(filename)) {
             missingFiles.remove(filename);
@@ -101,8 +117,8 @@ class Server {
         if (receivedChunks == null) {
             System.err.println("No data was sent over");
         } else {
-
             missingFiles = (missingFiles == null) ? findMissingFiles(receivedChunks) : missingFiles;
+            missingFiles.addAll(corruptedFiles);
 
             // First we need to check whether we have all
             // the files necessary to stich together the original image.
@@ -144,8 +160,8 @@ class Server {
         ds.send(msgPkt);
     }
 
-    public ArrayList<String> findMissingFiles(String[] receivedChunks) {
-        ArrayList<String> missingFiles = new ArrayList<>();
+    public LinkedHashSet<String> findMissingFiles(String[] receivedChunks) {
+        LinkedHashSet<String> missingFiles = new LinkedHashSet<>();
 
         FileChunking fileChunking = new FileChunking();
         int nChunks = receivedChunks.length;

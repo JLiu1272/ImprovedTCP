@@ -125,9 +125,11 @@ class FileChunking {
                         byte[] payload = new byte[(int) chunkSize];
                         System.arraycopy(buffer, 0, payload, 0, (int) chunkSize);
                         TCPProtocol tcpProtocol = new TCPProtocol(chunkFileName, payload, false);
-                        byte[] packagedData = tcpProtocol.packageData();
 
-                        // byte[] combinedData = utility.createPacketObj(chunkFNameEnd, buffer);
+                        byte[] packagedData = tcpProtocol.packageData(false);
+                        if (i == 12) {
+                            packagedData = tcpProtocol.packageData(true);
+                        }
 
                         // Initialise a title for sending the data
                         DatagramPacket dpSend = new DatagramPacket(packagedData, packagedData.length, addr);

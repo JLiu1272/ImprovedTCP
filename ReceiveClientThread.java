@@ -41,7 +41,7 @@ public class ReceiveClientThread implements Runnable {
 
                     utility.fileToBinary(binaryDataBuffer, directory + chunkFName);
                     TCPProtocol tcpProtocol = new TCPProtocol(chunkFName, binaryDataBuffer, true);
-                    byte[] packagedData = tcpProtocol.packageData();
+                    byte[] packagedData = tcpProtocol.packageData(false);
                     InetSocketAddress addr = new InetSocketAddress(dpReceived.getAddress(), dpReceived.getPort());
                     dpSend = new DatagramPacket(packagedData, packagedData.length, dpReceived.getSocketAddress());
                     ds.send(dpSend);
