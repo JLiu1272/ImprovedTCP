@@ -53,15 +53,15 @@ public class Client {
         if (connAvail) {
             ds.setSoTimeout(Integer.MAX_VALUE);
 
-            String[] fileChunks = fileChunker.splitFile(directory + binFile, chunkSize, ds);
+            fileChunker.splitFile(directory + binFile, chunkSize, ds);
 
             ExecutorService executor = Executors.newFixedThreadPool(1);
             try {
                 executor.execute(new ReceiveClientThread(ds));
                 executor.shutdown();
                 while (!executor.isTerminated()) {
-                    Thread.sleep(3000);
                     utility.sendMsg("Finished\n", ds, addr);
+                    Thread.sleep(2000);
                 }
             } catch (Exception err) {
                 err.printStackTrace();
