@@ -13,7 +13,7 @@ class Server {
     private static int chunkSize = 2000;
     private static final String directory = "TestFilesReceive";
     private static String oriFileName = "";
-    private static String[] receivedChunks = null;
+    private String[] receivedChunks = null;
     private static int BUFSIZE = 4 * 1024;
     private ArrayList<String> missingFiles = null;
 
@@ -47,22 +47,20 @@ class Server {
                 byte[] checksum = tcpProtocol.checksum();
                 byte[] payload = tcpProtocol.payload();
 
+                if (totalNumOfChunks == -1) {
+                    totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
+                    server.receivedChunks = new String[totalNumOfChunks];
+                }
+
+                int chunkNum = fileChunking.getChunkNumber(fname);
+                server.writeBinaryToFile(payload, fname);
+                server.receivedChunks[chunkNum] = fname;
+
+                System.out.println("Client:-" + fname + ", Resend: " + resend.toString());
                 if (resend) {
-                    System.out.println("Resends");
                     Boolean allFilesPatched = server.removeMissingFile(fname);
                     if (allFilesPatched)
                         server.completeTransaction(addr, ds);
-                } else {
-                    if (totalNumOfChunks == -1) {
-                        totalNumOfChunks = fileChunking.getNumberOfChunks(fname);
-                        receivedChunks = new String[totalNumOfChunks];
-                    }
-
-                    int chunkNum = fileChunking.getChunkNumber(fname);
-                    server.writeBinaryToFile(payload, fname);
-                    receivedChunks[chunkNum] = fname;
-
-                    System.out.println("Client:-" + fname);
                 }
             } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
                 String msg = new String(packet);
@@ -92,7 +90,7 @@ class Server {
             System.err.println("No data was sent over");
         } else {
 
-            missingFiles = findMissingFiles(receivedChunks);
+            missingFiles = (missingFiles == null) ? findMissingFiles(receivedChunks) : missingFiles;
 
             // First we need to check whether we have all
             // the files necessary to stich together the original image.

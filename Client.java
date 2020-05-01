@@ -5,7 +5,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-class Client {
+public class Client {
 
     public static String directory = "TestFiles/";
     public static int chunkSize = 2000;
@@ -40,6 +40,7 @@ class Client {
         Boolean connAvail = initialHandshake(ds);
 
         if (connAvail) {
+            ds.setSoTimeout(Integer.MAX_VALUE);
             String[] fileChunks = fileChunker.splitFile(directory + fname1, chunkSize, ds);
 
             ExecutorService executor = Executors.newFixedThreadPool(1);

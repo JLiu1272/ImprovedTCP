@@ -45,7 +45,6 @@ public class ReceiveClientThread implements Runnable {
                     InetSocketAddress addr = new InetSocketAddress(dpReceived.getAddress(), dpReceived.getPort());
                     dpSend = new DatagramPacket(packagedData, packagedData.length, dpReceived.getSocketAddress());
                     ds.send(dpSend);
-                    utility.sendMsg("Finished\n", ds, addr);
                 }
             } catch (IOException err) {
                 err.printStackTrace();
