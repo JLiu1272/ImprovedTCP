@@ -7,7 +7,7 @@ public class ReceiveClientThread implements Runnable {
 
     DatagramSocket ds = null;
     Boolean transferComplete = false;
-    int chunkSize = 2000;
+    int chunkSize = 5000;
     String directory = "TestFiles/";
 
     public ReceiveClientThread(DatagramSocket ds) {
@@ -15,7 +15,6 @@ public class ReceiveClientThread implements Runnable {
     }
 
     public void run() {
-        FileChunking fileChunking = new FileChunking();
         Utility utility = new Utility();
         byte[] receive = new byte[chunkSize];
         DatagramPacket dpReceived = null;

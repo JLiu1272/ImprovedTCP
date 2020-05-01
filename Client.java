@@ -5,14 +5,24 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
+/**
+ * File: Client.java Function: This class is the client in the client-server
+ * Author: Jennifer Liu
+ * 
+ * architecture. This class is responsible for splitting the binary file into
+ * mini chunks, and sending each chunks to the server. Additionally, it also
+ * handles resending missing chunks to the server.
+ */
 public class Client {
 
     public static String directory = "TestFiles/";
-    public static int chunkSize = 2000;
+    public static int chunkSize = 5000;
     public static int port = 3000;
 
+    /**
+     * Driver program for client
+     */
     public static void main(String args[]) throws IOException {
         if (args.length < 2) {
             System.err.println("Usage: java Client <Destination IP> <Bin File>");
@@ -33,13 +43,13 @@ public class Client {
             return;
         }
 
-        // String binFile = "t1.gif";
-
         // Send the initial filename without any parts differentiation
         String initMsg = "Filename#" + binFile;
         utility.sendMsg(initMsg, ds, addr);
         Boolean connAvail = initialHandshake(ds);
 
+        // Only perform chunk splitting if the server
+        // is available
         if (connAvail) {
             ds.setSoTimeout(Integer.MAX_VALUE);
 
@@ -50,7 +60,7 @@ public class Client {
                 executor.execute(new ReceiveClientThread(ds));
                 executor.shutdown();
                 while (!executor.isTerminated()) {
-                    Thread.sleep(7000);
+                    Thread.sleep(3000);
                     utility.sendMsg("Finished\n", ds, addr);
                 }
             } catch (Exception err) {

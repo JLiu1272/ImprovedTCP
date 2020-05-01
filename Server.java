@@ -10,15 +10,34 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * File: Server Author: Jennifer Liu
+ * 
+ * Objective: The server is responsible for accepting files from the the client
+ * in chunks. The server will notify client when there are missing files or
+ * files that were corrupted and needs a new one. It will assemble the chunks to
+ * create a complete file and save it onto the computer.
+ * 
+ */
 public class Server {
 
     private static final String directory = "TestFilesReceive";
     private static String oriFileName = "";
     private String[] receivedChunks = null;
-    private static int BUFSIZE = 4 * 1024;
+    private static int BUFSIZE = 5 * 1024;
+
+    // It is important to know that these arraylist only
+    // contains the name of the files. It does not contain
+    // the binary content
     private Set<String> missingFiles = null;
     private Set<String> corruptedFiles = null;
 
+    /**
+     * Driver program for server. Polls for messages from client
+     * 
+     * @param args
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException {
 
         int destPort = 3000;
@@ -86,59 +105,119 @@ public class Server {
         }
     }
 
+    /**
+     * Determine whether this packet is corrupted or not by comparing the checksum
+     * sent in the packet and the checksum computed when the packet arrived.
+     * 
+     * @param clientChecksum
+     * @param chunkFileName
+     * @param payload
+     * @return A boolean value determining whether data is corrupted or not
+     */
     public Boolean isDataCorrupted(byte[] clientChecksum, String chunkFileName, byte[] payload) {
         Utility utility = new Utility();
         byte[] serverChecksum = utility.computeChecksum(chunkFileName, payload);
         return !Arrays.equals(clientChecksum, serverChecksum);
     }
 
+    /**
+     * Add this file to the corruptedFiles hash set
+     * 
+     * @param filename
+     */
     public void addCorruptedFiles(String filename) {
         corruptedFiles = (corruptedFiles == null) ? new LinkedHashSet<>() : corruptedFiles;
         corruptedFiles.add(filename);
     }
 
+    /**
+     * If the filename is in the corruptedFile, remove the file from the corrupted
+     * file
+     * 
+     * @param filename
+     * @return
+     */
     public Boolean removeCorruptedFile(String filename) {
-        if (corruptedFiles.contains(filename)) {
-            corruptedFiles.remove(filename);
+        if (corruptedFiles != null) {
+            if (corruptedFiles.contains(filename)) {
+                corruptedFiles.remove(filename);
+            }
+            return corruptedFiles.size() == 0;
         }
-        return corruptedFiles.size() == 0;
+        return true;
     }
 
+    /***
+     * If the file is in the missingFiles arraylist, remove it from there.
+     * 
+     * @param filename
+     * @return A boolean value indicating whether there are still missing files
+     */
     public Boolean removeMissingFile(String filename) {
-        if (missingFiles.contains(filename)) {
-            missingFiles.remove(filename);
+        if (missingFiles != null) {
+            if (missingFiles.contains(filename)) {
+                missingFiles.remove(filename);
+            }
+            return missingFiles.size() == 0;
         }
-        return missingFiles.size() == 0;
+        return true;
     }
 
+    /**
+     * Client has sent us all the files. Check if we have everything. If we do,
+     * stitch the file together, and notify client that we were able to reassemble
+     * the file. If we do not have all the file, notify the client which files are
+     * missing.
+     * 
+     * @param addr - SocketAddress, the socket address of client
+     * @param ds   - DatagramSocket, the datagramSocket that is used to send
+     *             messages
+     * @throws IOException
+     */
     public void completeTransaction(SocketAddress addr, DatagramSocket ds) throws IOException {
         System.out.println("Client:-" + "Finishing");
         if (receivedChunks == null) {
             System.err.println("No data was sent over");
         } else {
             missingFiles = (missingFiles == null) ? findMissingFiles(receivedChunks) : missingFiles;
-            missingFiles.addAll(corruptedFiles);
+
+            if (corruptedFiles != null) {
+                missingFiles.addAll(corruptedFiles);
+            }
 
             // First we need to check whether we have all
             // the files necessary to stich together the original image.
             // If the arraylist of missing files has nothing, it means
             // we have all the files.
             if (missingFiles.size() == 0) {
-                stitchChunks();
                 notifyClient(addr, ds, "ReceivedSuccess\n");
+                stitchChunks();
             } else {
                 notifyClientMissingFiles(addr, ds);
             }
         }
     }
 
+    /**
+     * Piece all of the chunks together to make the final file
+     * 
+     * @throws IOException
+     */
     public void stitchChunks() throws IOException {
         FileChunking fileChunking = new FileChunking();
-        for (int i = 0; i < receivedChunks.length; i++) {
-            fileChunking.joinChunks(directory + "/" + receivedChunks[i]);
+        if (receivedChunks != null) {
+            fileChunking.joinChunks(directory + "/" + receivedChunks[0]);
         }
     }
 
+    /**
+     * A function to notify the client of missing files. It traverses through the
+     * missing file, and creates a new thread to send client a notification of
+     * missing files
+     * 
+     * @param addr
+     * @param ds
+     */
     public void notifyClientMissingFiles(SocketAddress addr, DatagramSocket ds) {
         ExecutorService executor = Executors.newFixedThreadPool(missingFiles.size());
         try {
@@ -152,6 +231,15 @@ public class Server {
         }
     }
 
+    /**
+     * Notify client a generic message that is determined by the caller of this
+     * function
+     * 
+     * @param addr - Address of client
+     * @param ds   - The socket used to send this message
+     * @param msg  - The message to be sent to client
+     * @throws IOException
+     */
     public void notifyClient(SocketAddress addr, DatagramSocket ds, String msg) throws IOException {
         // Send client a message indicating that the transaction succeeded
         byte[] msgByte = msg.getBytes();
@@ -159,6 +247,14 @@ public class Server {
         ds.send(msgPkt);
     }
 
+    /**
+     * Finding missing chunks by traversing through the missingFiles array, and
+     * seeing if any of the values are null
+     * 
+     * @param receivedChunks - A string array containing the filename of received
+     *                       chunks
+     * @return - A LinkedHashSet of Strings containing the filename of missing files
+     */
     public LinkedHashSet<String> findMissingFiles(String[] receivedChunks) {
         LinkedHashSet<String> missingFiles = new LinkedHashSet<>();
 
@@ -176,41 +272,16 @@ public class Server {
         return missingFiles;
     }
 
+    /**
+     * Given the binary data and filename, write this binary chunk to hard drive
+     * 
+     * @param buffer (byte[]) - The binary data
+     * @param fname  (String) - Filename of chunk
+     * @throws IOException
+     */
     public void writeBinaryToFile(byte[] buffer, String fname) throws IOException {
         FileOutputStream fos = new FileOutputStream(directory + "/" + fname);
         fos.write(buffer);
         fos.close();
-    }
-
-    // A utility method to convert the byte array
-    // data into a string representation.
-    // Returns the last byte index that is part of the filename
-    public int byteToStr(byte[] a, StringBuilder fname) {
-        if (a == null)
-            return -1;
-        // StringBuilder ret = new StringBuilder();
-        int i = 0;
-        int numColon = 1;
-        while (a[i] != 0) {
-            char letter = (char) a[i];
-            // If there are 4 colons consecutively, we have already obtained
-            // the filename
-            if (numColon >= 4) {
-                return i + 1;
-            }
-
-            // If the letter is a color, we increment the numColon counter
-            if (letter == ':') {
-                numColon += 1;
-            } else {
-                // We have encoutered a character that is
-                // not a colon, so reset the numColon counter.
-                // Append the character to the name
-                fname.append(letter);
-                numColon = 1;
-            }
-            i++;
-        }
-        return i;
     }
 }

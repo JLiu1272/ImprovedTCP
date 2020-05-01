@@ -12,8 +12,8 @@ import java.util.Arrays;
 
 public class Utility {
 
-    public int chunkSize = 2000;
-    public int BUFSIZE = 4 * 1024;
+    public int chunkSize = 5000;
+    public int BUFSIZE = 5 * 1024;
 
     // A utility method to convert the byte array
     // data into a string representation.

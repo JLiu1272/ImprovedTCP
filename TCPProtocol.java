@@ -14,8 +14,6 @@ class TCPProtocol {
     private byte[] checksum = null;
     private Boolean resend = false;
 
-    private int chunkSize = 2000;
-
     public TCPProtocol(String chunkFileName, byte[] payload, Boolean resend) {
         this.chunkFileName = chunkFileName;
         this.chunkFileNameByte = chunkFileName.getBytes();
