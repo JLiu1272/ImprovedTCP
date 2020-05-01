@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -13,35 +14,36 @@ public class Client {
     public static int TIMEOUT = 3000;
 
     public static void main(String args[]) throws IOException {
-        // Utility utility = new Utility();
-        // byte[] binaryDataBuffer = new byte[4 * 1024];
-        // String filename = directory + "t1.gif.part200of243";
-        // System.out.println(filename);
-        // utility.fileToBinary(binaryDataBuffer, filename);
+        if (args.length < 2) {
+            System.err.println("Usage: java Client <Destination IP> <Bin File>");
+            return;
+        }
 
-        // IP Destination
-        // String ipDest = args[0];
-        String ipDest = "127.0.0.1";
-
-        // if (args.length < 2) {
-        // System.err.println("Usage: java Client <Destination IP> <Bin File>");
-        // return;
-        // }
+        String ipDest = args[0];
+        String binFile = args[1];
 
         DatagramSocket ds = new DatagramSocket();
         InetSocketAddress addr = new InetSocketAddress(ipDest, port);
         FileChunking fileChunker = new FileChunking(addr);
         Utility utility = new Utility();
-        String fname1 = "t1.gif";
+
+        // File does not exist, so do not proceed further
+        if (!new File(directory + binFile).exists()) {
+            System.err.println(binFile + ": does not exist");
+            return;
+        }
+
+        // String binFile = "t1.gif";
 
         // Send the initial filename without any parts differentiation
-        String initMsg = "Filename#" + fname1;
+        String initMsg = "Filename#" + binFile;
         utility.sendMsg(initMsg, ds, addr);
         Boolean connAvail = initialHandshake(ds);
 
         if (connAvail) {
             ds.setSoTimeout(Integer.MAX_VALUE);
-            String[] fileChunks = fileChunker.splitFile(directory + fname1, chunkSize, ds);
+
+            String[] fileChunks = fileChunker.splitFile(directory + binFile, chunkSize, ds);
 
             ExecutorService executor = Executors.newFixedThreadPool(1);
             try {
@@ -51,7 +53,7 @@ public class Client {
             }
             executor.shutdown();
         } else {
-            System.err.println("Server is not available");
+            System.err.println("Server: " + ipDest + " - is not available");
         }
     }
 
