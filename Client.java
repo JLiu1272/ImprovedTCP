@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,6 +53,8 @@ public class Client {
         // is available
         if (connAvail) {
             ds.setSoTimeout(Integer.MAX_VALUE);
+            Date startTime = new Date();
+            System.out.println("Starting Time: " + startTime.toString());
 
             fileChunker.splitFile(directory + binFile, chunkSize, ds);
 
@@ -59,10 +62,13 @@ public class Client {
             try {
                 executor.execute(new ReceiveClientThread(ds));
                 executor.shutdown();
+                Date endTime = new Date();
+                long timeElapsed = (endTime.getTime() - startTime.getTime()) / 1000 % 60;
                 while (!executor.isTerminated()) {
                     utility.sendMsg("Finished\n", ds, addr);
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
                 }
+                System.out.println("Execution Time: " + String.valueOf(timeElapsed) + "s");
             } catch (Exception err) {
                 err.printStackTrace();
             }

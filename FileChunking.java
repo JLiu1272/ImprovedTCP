@@ -45,10 +45,6 @@ class FileChunking {
         return new File(file).length() > chunkSize;
     }
 
-    private boolean isASplitFileChunk(String file) {
-        return chunkIndexLen(file) > 0;
-    }
-
     /**
      * Determines the number of digits of the total number of chunks. i.e If the
      * number of chunks is 243, this would return 3 because there are 3 digits
@@ -264,14 +260,13 @@ class FileChunking {
         if (n > 0) {
             int nChunks = getNumberOfChunks(chunkName);
             String filename = getWholeFileName(chunkName);
-            // String filename = "TestFiles/t1_comb.gif";
             byte[] buffer = new byte[BUFSIZE];
             FileOutputStream fos = new FileOutputStream(filename);
             try {
                 for (int i = 0; i < nChunks; i++) {
                     FileInputStream fis = new FileInputStream(chunkFileName(filename, i, nChunks, n));
                     try {
-                        System.out.println("Stiching: " + chunkFileName(filename, i, nChunks, n));
+                        // System.out.println("Stiching: " + chunkFileName(filename, i, nChunks, n));
                         copyStream(fis, buffer, fos, -1);
                     } finally {
                         fis.close();

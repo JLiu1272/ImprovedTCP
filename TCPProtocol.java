@@ -1,11 +1,15 @@
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.*;
 
+/**
+ * File: TCPProtocol.java Author: Jennifer Liu
+ * 
+ * Objective: This is a class that structures how the TCP packet is formed. It
+ * is my protocol.
+ * 
+ * Protocol works like so Resend Bit (1 Byte), chunkFileName (Variable Length),
+ * Checksum (32 Byte), Payload (ChunkSize)
+ */
 class TCPProtocol {
 
     private byte[] payload = null;
@@ -14,6 +18,14 @@ class TCPProtocol {
     private byte[] checksum = null;
     private Boolean resend = false;
 
+    /**
+     * Initialises the TCPProtocol. When this packet is packaged, it will compute
+     * the checksum
+     * 
+     * @param chunkFileName
+     * @param payload
+     * @param resend
+     */
     public TCPProtocol(String chunkFileName, byte[] payload, Boolean resend) {
         this.chunkFileName = chunkFileName;
         this.chunkFileNameByte = chunkFileName.getBytes();
@@ -21,6 +33,14 @@ class TCPProtocol {
         this.resend = resend;
     }
 
+    /**
+     * There is already a checksum so update the checksum for this class
+     * 
+     * @param filename
+     * @param payload
+     * @param checksum
+     * @param resend
+     */
     public TCPProtocol(String filename, byte[] payload, byte[] checksum, Boolean resend) {
         this.checksum = checksum;
         this.chunkFileName = filename;
@@ -29,6 +49,13 @@ class TCPProtocol {
         this.resend = resend;
     }
 
+    /**
+     * Converts a boolean to a byte array. Used for the resend bit for easier
+     * understanding.
+     * 
+     * @param resend
+     * @return
+     */
     public byte[] boolToByteArr(Boolean resend) {
         return new byte[] { (byte) (resend ? 1 : 0) };
     }
@@ -89,6 +116,8 @@ class TCPProtocol {
      * @return
      */
     public byte[] packageData(Boolean corrupt) {
+        // If the payload or the chunkFileNameByte is null,
+        // we cannot package this data
         if (this.chunkFileNameByte == null || this.payload == null) {
             System.err.println("Filename or payload are null");
             return new byte[1];
@@ -97,12 +126,15 @@ class TCPProtocol {
         byte[] protocol = new byte[1];
         Utility utility = new Utility();
 
+        // Write this package to the hard disk
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try {
             outputStream.write(boolToByteArr(resend));
             outputStream.write(this.chunkFileNameByte);
             outputStream.write(utility.computeChecksum(chunkFileName, payload));
 
+            // Used for simulating corrupted data. Will only
+            // run if the corrupt state is set to True
             if (corrupt)
                 this.payload[0] = 22;
 

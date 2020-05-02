@@ -90,6 +90,8 @@ public class Server {
                 }
 
             } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException e) {
+                // We are unable to extract the file, which means
+                // it is not one of the TCP Protocols
                 String msg = new String(packet);
                 if (msg.startsWith("Filename#")) {
                     oriFileName = msg.split("#")[1];
