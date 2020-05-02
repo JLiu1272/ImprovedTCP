@@ -5,8 +5,8 @@
 .vscode
 
 # Ignore images/gif/video when placing in git repository 
-TestFiles/*
-TestFilesReceive/*
+# TestFiles/*
+# TestFilesReceive/*
 
 # Ignore classes files 
 *.class
