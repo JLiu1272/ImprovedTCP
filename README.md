@@ -14,3 +14,7 @@ How is the final output stored?
 The files that the client made will be stored in the TestFiles directory. The files
 that the server received from the client will be stored in the TestFilesReceive directory.
 The chunks of the files will also be stored in these directories.
+
+Modify Chunk Size
+To modify the chunk size. You need to search for chunkSize variable in the
+code, and change those variables. Chunk Size Range - chunkSize > 0 and chunkSize < 5 \* 1024
