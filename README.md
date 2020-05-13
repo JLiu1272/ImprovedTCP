@@ -6,7 +6,7 @@ How to run this?
 
 1. Run the make command in terminal to compile all the java files
 2. Start a server. Run java Server
-3. Initialise a client. Run java Client <Destination IP> <File Name to send> (i.e java Client 127.0.0.1 t1.gif)
+3. Initialise a client. Run java Client [Destination IP] [File Name to send] (i.e java Client 127.0.0.1 t1.gif)
 4. Once the server has received everything, the client will close and output the "Transaction Completed" message
 
 How is the final output stored?
