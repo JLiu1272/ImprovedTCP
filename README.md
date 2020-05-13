@@ -1,4 +1,4 @@
-# Data Communication and Networks Project 4
+# FTP Implementation, Because Why Not, I want to learn
 
 Objective: Implementing a more efficient, resource saving TCP Protocol
 
